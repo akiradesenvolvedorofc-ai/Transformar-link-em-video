@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Conversor de Vídeo em Link</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        body { background: #0f172a; color: #f8fafc; display: flex; justify-content: center; align-content: center; min-height: 100vh; padding: 20px; flex-wrap: wrap; }
+        .container { background: #1e293b; padding: 40px; border-radius: 12px; width: 100%; max-width: 500px; text-align: center; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.3); }
+        h1 { margin-bottom: 10px; font-size: 24px; color: #38bdf8; }
+        p { color: #94a3b8; margin-bottom: 30px; font-size: 14px; }
+        .drop-zone { border: 2px dashed #38bdf8; border-radius: 8px; padding: 40px 20px; cursor: pointer; transition: background 0.3s; background: #0f172a; }
+        .drop-zone:hover { background: #1e293b; }
+        .drop-zone p { margin: 0; color: #38bdf8; font-weight: 600; }
+        input[type="file"] { display: none; }
+        .progress-bar { width: 100%; height: 8px; background: #334155; border-radius: 4px; margin-top: 20px; display: none; overflow: hidden; }
+        .progress { width: 0%; height: 100%; background: #38bdf8; transition: width 0.1s; }
+        .result-box { margin-top: 25px; padding: 15px; background: #0f172a; border-radius: 6px; display: none; word-break: break-all; text-align: left; }
+        .result-box label { font-size: 12px; color: #94a3b8; display: block; margin-bottom: 5px; }
+        .result-box a { color: #38bdf8; text-decoration: none; font-weight: bold; font-size: 14px; }
+        .btn-copy { background: #38bdf8; color: #0f172a; border: none; padding: 8px 12px; border-radius: 4px; font-weight: bold; margin-top: 10px; cursor: pointer; width: 100%; }
+        .btn-copy:hover { background: #7dd3fc; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>Vídeo para Link</h1>
+    <p>Envie seu filme ou vídeo e obtenha um link de nuvem instantâneo.</p>
+    
+    <div class="drop-zone" id="dropZone">
+        <p>Clique ou Arraste o Vídeo Aqui</p>
+        <input type="file" id="fileInput" accept="video/*">
+    </div>
+
+    <div class="progress-bar" id="progressBar">
+        <div class="progress" id="progress"></div>
+    </div>
+
+    <div class="result-box" id="resultBox">
+        <label>Seu link gerado:</label>
+        <a href="#" id="videoLink" target="_blank">Gerando...</a>
+        <button class="btn-copy" id="btnCopy">Copiar Link</button>
+    </div>
+</div>
+
+<script>
+    const dropZone = document.getElementById('dropZone');
+    const fileInput = document.getElementById('fileInput');
+    const progressBar = document.getElementById('progressBar');
+    const progress = document.getElementById('progress');
+    const resultBox = document.getElementById('resultBox');
+    const videoLink = document.getElementById('videoLink');
+    const btnCopy = document.getElementById('btnCopy');
+
+    dropZone.addEventListener('click', () => fileInput.click());
+
+    dropZone.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        dropZone.style.borderColor = '#7dd3fc';
+    });
+
+    dropZone.addEventListener('dragleave', () => {
+        dropZone.style.borderColor = '#38bdf8';
+    });
+
+    dropZone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        dropZone.style.borderColor = '#38bdf8';
+        if (e.dataTransfer.files.length > 0) {
+            handleUpload(e.dataTransfer.files[0]);
+        }
+    });
+
+    fileInput.addEventListener('change', () => {
+        if (fileInput.files.length > 0) {
+            handleUpload(fileInput.files[0]);
+        }
+    });
+
+    function handleUpload(file) {
+        if (!file.type.startsWith('video/')) {
+            alert('Por favor, selecione apenas arquivos de vídeo.');
+            return;
+        }
+
+        progressBar.style.display = 'block';
+        resultBox.style.display = 'none';
+        progress.style.width = '0%';
+
+        const formData = new FormData();
+        formData.append('video', file);
+
+        // Simulando o progresso do upload para a API
+        const xhr = new XMLHttpRequest();
+        xhr.open('POST', '/api/upload', true);
+
+        xhr.upload.onprogress = (e) => {
+            if (e.lengthComputable) {
+                const percentComplete = (e.loaded / e.total) * 100;
+                progress.style.width = percentComplete + '%';
+            }
+        };
+
+        xhr.onload = function() {
+            if (xhr.status === 200) {
+                const response = JSON.parse(xhr.responseText);
+                videoLink.href = response.url;
+                videoLink.innerText = response.url;
+                resultBox.style.style.display = 'block';
+            } else {
+                alert('Erro ao enviar o vídeo. Verifique as configurações de armazenamento.');
+            }
+            progressBar.style.display = 'none';
+        };
+
+        xhr.send(formData);
+    }
+
+    btnCopy.addEventListener('click', () => {
+        navigator.clipboard.writeText(videoLink.href);
+        alert('Link copiado para a área de transferência!');
+    });
+</script>
+
+</body>
+</html>
