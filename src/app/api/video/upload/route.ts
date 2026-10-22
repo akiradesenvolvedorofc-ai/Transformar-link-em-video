@@ -1,29 +1,42 @@
-import { handleUpload, type HandleUploadBody } from '@vercel/blob/client';
 import { NextResponse } from 'next/server';
+import { createClient } from '@supabase/supabase-js';
 
-export async function POST(request: Request): Promise<NextResponse> {
-  const body = (await request.json()) as HandleUploadBody;
+// Suas credenciais diretas e configuradas com segurança
+const supabaseUrl = 'https://jsjzejenanmjsgksoixw.supabase.co';
+const supabaseAnonKey = 'sb_publishable_M53uK9WdNKnFgcx0xLdmow_95nh8UJp';
+const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
+export async function POST(request: Request) {
   try {
-    const jsonResponse = await handleUpload({
-      body,
-      request,
-      onBeforeGenerateToken: async (pathname) => {
-        return {
-          allowedContentTypes: ['video/mp4', 'video/quicktime', 'video/webm', 'video/x-matroska'],
-          maximumSizeInBytes: 524288000, // Permite vídeos de até 500MB (Ajuste se precisar de mais)
-        };
-      },
-      onUploadCompleted: async ({ blob, tokenPayload }) => {
-        console.log('Upload finalizado com sucesso:', blob.url);
-      },
-    });
+    const { searchParams } = new URL(request.url);
+    const filename = searchParams.get('filename') || `video_${Date.now()}.mp4`;
 
-    return NextResponse.json(jsonResponse);
-  } catch (error) {
-    return NextResponse.json(
-      { error: (error as Error).message },
-      { status: 400 },
-    );
+    const formData = await request.formData();
+    const file = formData.get('video') as File;
+
+    if (!file) {
+      return NextResponse.json({ error: 'Nenhum arquivo enviado.' }, { status: 400 });
+    }
+
+    const buffer = Buffer.from(await file.arrayBuffer());
+
+    // Envia o vídeo para a pasta dentro do bucket 'videos'
+    const { data, error } = await supabase.storage
+      .from('videos')
+      .upload(`public/${Date.now()}_${filename}`, buffer, {
+        contentType: file.type,
+        upsert: true
+      });
+
+    if (error) throw error;
+
+    // Puxa a URL pública gerada no Supabase
+    const { data: urlData } = supabase.storage
+      .from('videos')
+      .getPublicUrl(data.path);
+
+    return NextResponse.json({ url: urlData.publicUrl });
+  } catch (error: any) {
+    return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
